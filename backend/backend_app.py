@@ -9,8 +9,18 @@ POSTS = [
     {"id": 2, "title": "Second post", "content": "This is the second post."},
 ]
 
+def validate_post_data(data):
+    """
+    Checks that all fields on the form have been filled in.
+    If any of the fields are empty, ‘False’ is returned.
+    """
+
+    if not data.get("title") or not data.get("content"):
+        return False
+    return True
+
 @app.route('/api/posts', methods=['GET', 'POST'])
-def get_posts(postID):
+def get_posts():
 
     if request.method == 'POST':
         data = request.get_json()
@@ -26,21 +36,21 @@ def get_posts(postID):
                         "content": data.get('content')
                         }
 
+        if not validate_post_data(new_blog_post):
+            return jsonify({"error": "Invalid post data"}), 400
+
         POSTS.append(new_blog_post)
 
     return jsonify(POSTS)
 
-@app.route('/delete/<int:postID>', methods=['POST'])
+@app.route('/api/posts/<int:postID>', methods=['DELETE'])
 def delete_post(postID):
 
-    data = request.get_json()
+    global POSTS
 
+    POSTS = [blog for blog in POSTS if blog["id"] != postID]
 
-    for blog in data:
-        print(blog)
-        if blog["ID"] == postID:
-            data.remove(blog)
-
+    return jsonify(POSTS)
 
 
 if __name__ == '__main__':
