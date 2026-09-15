@@ -29,36 +29,53 @@ def validate_post_data_title(data):
         return False
     return True
 
-@app.route('/api/posts', methods=['GET', 'POST'])
+@app.route('/api/posts', methods=['GET'])
 def get_posts():
 
-    if request.method == 'POST':
-        data = request.get_json()
+    sort_query = request.args.get('sort')
+    direction_query = request.args.get('direction')
 
-        if len(POSTS) == 0:
-            new_id = 1
-        else:
-            new_id = max(blog_post['id'] for blog_post in POSTS) + 1
+    results = list(POSTS)
 
-        new_blog_post = {
-                        "id": new_id,
-                        "title": data.get('title'),
-                        "content": data.get('content')
-                        }
+    if sort_query:
+        if sort_query.lower() not in ("title", "content"):
+            return jsonify({"error": "sort must be 'title' or 'content'"}), 400
 
-        if not validate_post_data_content_and_title(new_blog_post):
-            return jsonify({"error": "missing title and content data"}), 400
+        reverse = direction_query and direction_query.lower() == "desc" # is desc --> reverse is True; is not desc --> asc or what ever --> reverse is False(default)
+                # <- sort blog by key ->         <- explained by blog sort.query(title or content) ->
+        results.sort(key=lambda blog: blog[sort_query.lower()].lower(), reverse=reverse)
 
-        if not validate_post_data_content(new_blog_post):
-            return jsonify({"error": "missing content data"}), 400
+    return jsonify(results)
 
-        if not validate_post_data_title(new_blog_post):
-            return jsonify({"error": "missing title data"}), 400
 
-        POSTS.append(new_blog_post)
-        return jsonify(new_blog_post), 201
+@app.route('/api/posts', methods=['POST'])
+def add_posts():
 
-    return jsonify(POSTS)
+    data = request.get_json()
+
+    if len(POSTS) == 0:
+        new_id = 1
+    else:
+        new_id = max(blog_post['id'] for blog_post in POSTS) + 1
+
+    new_blog_post = {
+        "id": new_id,
+        "title": data.get('title'),
+        "content": data.get('content')
+    }
+
+    if not validate_post_data_content_and_title(new_blog_post):
+        return jsonify({"error": "missing title and content data"}), 400
+
+    if not validate_post_data_content(new_blog_post):
+        return jsonify({"error": "missing content data"}), 400
+
+    if not validate_post_data_title(new_blog_post):
+        return jsonify({"error": "missing title data"}), 400
+
+    POSTS.append(new_blog_post)
+    return jsonify(new_blog_post), 201
+
 
 @app.route('/api/posts/<int:postID>', methods=['DELETE'])
 def delete_post(postID):
@@ -103,6 +120,8 @@ def search():
             results.append(blog)
 
     return jsonify(results)
+
+
 
 
 if __name__ == '__main__':
