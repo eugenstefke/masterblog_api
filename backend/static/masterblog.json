@@ -4,20 +4,81 @@
     "title": "Masterblog API",
     "version": "1.0.0"
   },
-  "servers": [{ "url": "http://localhost:5001" }],
+  "servers": [{ "url": "http://localhost:5002" }],
   "tags": [{ "name": "Post", "description": "Post API - CRUD" }],
-    "paths": {
-        "/api/posts": {
-            "get": {
+  "paths": {
+    "/api/posts": {
+      "get": {
         "summary": "Returns all posts",
         "produces": ["application/json"],
         "tags": ["Post"],
         "responses": {
-          "200": {
-            "description": "Successful operation"
-          }
+          "200": { "description": "Successful operation" }
         }
       },
+      "post": {
+        "summary": "Add a new post",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["Post"],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "title": { "type": "string" },
+                "content": { "type": "string" }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "201": { "description": "Post created successfully" },
+          "400": { "description": "Missing title or content" }
         }
+      }
+    },
+    "/api/posts/{id}": {
+      "put": {
+        "summary": "Update an existing post",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["Post"],
+        "parameters": [
+          { "in": "path", "name": "id", "required": true, "type": "integer" },
+          {
+            "in": "body",
+            "name": "body",
+            "required": false,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "title": { "type": "string" },
+                "content": { "type": "string" }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": { "description": "Post updated successfully" },
+          "404": { "description": "Post not found" }
+        }
+      },
+      "delete": {
+        "summary": "Delete a post",
+        "produces": ["application/json"],
+        "tags": ["Post"],
+        "parameters": [
+          { "in": "path", "name": "id", "required": true, "type": "integer" }
+        ],
+        "responses": {
+          "200": { "description": "Post deleted successfully" },
+          "404": { "description": "Post not found" }
+        }
+      }
     }
+  }
 }
