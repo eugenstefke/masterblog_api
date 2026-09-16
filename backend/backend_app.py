@@ -36,28 +36,49 @@ def write_json(post):
         json.dump(post, data, indent=4, ensure_ascii=False)
 
 def validate_post_data_content_and_title(data):
+    """
+    Checks that all fields on the form have been filled in.
+    If any of the fields are empty, ‘False’ is returned.
+    """
     if not data.get("content") and not data.get("title"):
         return False
     return True
 
 def validate_post_data_content(data):
     """
-    Checks that all fields on the form have been filled in.
-    If any of the fields are empty, ‘False’ is returned.
+    Checks whether the ‘content’ field in the form has been filled in.
+    If this field is empty, ‘False’ is returned.
     """
-
     if not data.get("content"):
         return False
     return True
 
 def validate_post_data_title(data):
+    """
+    Checks whether the ‘title’ field in the form has been filled in.
+    If this field is empty, ‘False’ is returned.
+    """
     if not data.get("title"):
         return False
     return True
 
 @app.route('/api/posts', methods=['GET'])
 def get_posts():
+    """
+    Retrieves all posts
+    provides the sort and direction parameters for the query
 
+    A copy of the posts is created and stored in ‘results’
+
+    If sort_query == True
+    it checks whether ‘title’ or ‘content’ has been selected for sorting.
+    If neither has been selected, a 400 error message is returned.
+
+    If the query is based on ‘title’ or ‘content’, the results are sorted according to the selected direction and returned.
+    ‘asc’ means descending, ‘desc’ means ascending
+
+    The sorted list is returned in JSON format
+    """
     all_blogs = get_json()
     sort_query = request.args.get('sort')
     direction_query = request.args.get('direction')
@@ -77,8 +98,18 @@ def get_posts():
 
 @app.route('/api/posts', methods=['POST'])
 def add_posts():
+    """
+    Converts the body content from the front end into Python.
 
-    data = request.get_json()
+    Creates a new ID
+
+    Creates a new post based on the input from the front end and the newly created ID
+
+    Checks the content of the post. If the title and/or post content is empty, an error is displayed
+
+    If the check is successful, the new post is created and added to the JSON list
+    """
+    data = request.get_json() # userinput from frontend like that: {"title": "My titel", "content": "My content"}. request.get_json() converts it in Python
     all_blogs = get_json()
 
     if len(all_blogs) == 0:
@@ -108,6 +139,14 @@ def add_posts():
 
 @app.route('/api/posts/<int:postID>', methods=['DELETE'])
 def delete_post(postID):
+    """
+    It goes through all the posts, searching for the ID to be deleted.
+
+    If the ID is not found, an error is displayed.
+
+    If the ID is found, the post with that ID is deleted.
+    """
+
     all_blogs = get_json()
 
     post_exists = any(blog["id"] == postID for blog in all_blogs)
@@ -122,7 +161,13 @@ def delete_post(postID):
 
 @app.route('/api/posts/<int:postID>', methods=['PUT'])
 def update(postID):
+    """
+    It goes through all the posts, searching for the ID to be updated.
 
+    If the ID is not found, an error is displayed.
+
+    If the ID is found, the post is updated in the title and/or post content.
+    """
     all_blogs = get_json()
     for blog in all_blogs:
         if blog["id"] == postID:
@@ -138,7 +183,15 @@ def update(postID):
 
 @app.route('/api/posts/search', methods=['GET'])
 def search():
+    """
+    Search function based on key/value parameters
 
+    The title and post content are provided as key parameters.
+
+    The values are compared with existing posts; if a match is found, the post is added to the results list.
+
+    Returns the new list 
+    """
     title_query = request.args.get('title', '')
     content_query = request.args.get('content', '')
 
