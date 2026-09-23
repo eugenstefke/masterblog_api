@@ -18,29 +18,34 @@ swagger_ui_blueprint = get_swaggerui_blueprint(
 )
 app.register_blueprint(swagger_ui_blueprint, url_prefix=SWAGGER_URL)
 
-def get_json():
+def load_posts():
     """
     Read the json file
     return: all blogs as a dict in list [{},{}] structure
     """
-
-    with open("posts.json", "r", encoding="utf-8") as data:
-        return json.load(data)
+    try:
+        with open('posts.json', "r", encoding="utf-8") as data:
+            return json.load(data)
+    except FileNotFoundError:
+        return []
+    except json.JSONDecodeError:
+        return []
 
 def write_json(post):
     """
     write the python blog posts to json structure
     """
-
     with open("posts.json", "w", encoding="utf-8") as data:
         json.dump(post, data, indent=4, ensure_ascii=False)
 
-def validate_post_data(data):
+def validate_post_request(data):
     """
     Checks that all fields on the form have been filled in.
     If any of the fields are empty, ‘False’ is returned.
     """
-    if not data.get("content") and not data.get("title"):
+    if data is None:
+        return False, {"error": "Request body must be valid JSON"}
+    elif not data.get("content") and not data.get("title"):
         return False, {"error": "missing title and content data"}
     elif not data.get("content"):
         return False, {"error": "missing content data"}
@@ -65,7 +70,7 @@ def get_posts():
 
     The sorted list is returned in JSON format
     """
-    all_blogs = get_json()
+    all_blogs = load_posts()
     sort_query = request.args.get('sort')
     direction_query = request.args.get('direction')
 
@@ -75,7 +80,10 @@ def get_posts():
         if sort_query.lower() not in ("title", "content"):
             return jsonify({"error": "sort must be 'title' or 'content'"}), 400
 
-        reverse = direction_query and direction_query.lower() == "desc" # is desc --> reverse is True; is not desc --> asc or what ever --> reverse is False(default)
+        if direction_query and direction_query.lower() not in ("asc", "desc"):
+            return jsonify({"error": "direction must be 'asc' or 'desc'"}), 400
+
+        reverse = direction_query and direction_query.lower() == "desc" # is desc --> reverse is True; is not desc --> asc  --> reverse is False(default)
                 # <- sort blog by key ->         <- explained by blog sort.query(title or content) ->
         results.sort(key=lambda blog: blog[sort_query.lower()].lower(), reverse=reverse)
 
@@ -95,10 +103,15 @@ def add_posts():
 
     If the check is successful, the new post is created and added to the JSON list
     """
-    data = request.get_json() # userinput from frontend like that: {"title": "My titel", "content": "My content"}. request.get_json() converts it in Python
-    all_blogs = get_json()
+    data = request.get_json(silent=True) # userinput from frontend like that: {"title": "My titel", "content": "My content"}. request.get_json() converts it in Python
+    all_blogs = load_posts()
 
-    if len(all_blogs) == 0:
+    is_valid, message = validate_post_request(data)
+
+    if not is_valid:
+        return jsonify(message), 400
+
+    if not all_blogs:
         new_id = 1
     else:
         new_id = max(blog_post['id'] for blog_post in all_blogs) + 1
@@ -109,13 +122,13 @@ def add_posts():
         "content": data.get('content')
     }
 
-    is_valid, message = validate_post_data(new_blog_post)
-
-    if not is_valid:
-        return jsonify(message), 400
-
     all_blogs.append(new_blog_post)
-    write_json(all_blogs)
+
+    try:
+        write_json(all_blogs)
+    except OSError as e:
+        return jsonify({"error": f"Could not save post: {e}"}), 500
+
     return jsonify(new_blog_post), 201
 
 
@@ -128,17 +141,15 @@ def delete_post(post_id):
 
     If the ID is found, the post with that ID is deleted.
     """
+    all_blogs = load_posts()
 
-    all_blogs = get_json()
+    for i, blog in enumerate(all_blogs):
+        if blog["id"] == post_id:
+            del all_blogs[i]
+            write_json(all_blogs)
+            return jsonify({"message": f"Post with id {post_id} has been deleted successfully."}), 200
 
-    post_exists = any(blog["id"] == post_id for blog in all_blogs)
-
-    if not post_exists:
-        return jsonify({"message": f"Post with id {post_id} not found."}), 404
-
-    all_blogs = [blog for blog in all_blogs if blog["id"] != post_id]
-    write_json(all_blogs)
-    return jsonify({"message": f"Post with id {post_id} has been deleted successfully."}), 200
+    return jsonify({"message": f"Post with id {post_id} not found."}), 404
 
 
 @app.route('/api/posts/<int:post_id>', methods=['PUT'])
@@ -150,7 +161,7 @@ def update_post(post_id):
 
     If the ID is found, the post is updated in the title and/or post content.
     """
-    all_blogs = get_json()
+    all_blogs = load_posts()
     for blog in all_blogs:
         if blog["id"] == post_id:
             data = request.get_json() # liest den Body der eingehenden HTTP-Anfrage (also die Daten, die der Client beim PUT-Request mitgeschickt hat), interpretiert ihn als JSON-Text und wandelt ihn in ein Python-Dict um.
@@ -177,7 +188,7 @@ def search_post():
     title_query = request.args.get('title', '')
     content_query = request.args.get('content', '')
 
-    all_blogs = get_json()
+    all_blogs = load_posts()
 
     results = []
     for blog in all_blogs:
