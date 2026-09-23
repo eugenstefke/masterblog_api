@@ -6,8 +6,8 @@ import json
 app = Flask(__name__)
 CORS(app)  # This will enable CORS for all routes
 
-SWAGGER_URL="/api/docs"  # (1) swagger endpoint e.g. HTTP://localhost:5002/api/docs
-API_URL="/static/masterblog.json" # (2) ensure you create this dir and file
+SWAGGER_URL = "/api/docs"  # (1) swagger endpoint e.g. HTTP://localhost:5002/api/docs
+API_URL = "/static/masterblog.json" # (2) ensure you create this dir and file
 
 swagger_ui_blueprint = get_swaggerui_blueprint(
     SWAGGER_URL,
@@ -35,32 +35,18 @@ def write_json(post):
     with open("posts.json", "w", encoding="utf-8") as data:
         json.dump(post, data, indent=4, ensure_ascii=False)
 
-def validate_post_data_content_and_title(data):
+def validate_post_data(data):
     """
     Checks that all fields on the form have been filled in.
     If any of the fields are empty, ‘False’ is returned.
     """
     if not data.get("content") and not data.get("title"):
-        return False
-    return True
-
-def validate_post_data_content(data):
-    """
-    Checks whether the ‘content’ field in the form has been filled in.
-    If this field is empty, ‘False’ is returned.
-    """
-    if not data.get("content"):
-        return False
-    return True
-
-def validate_post_data_title(data):
-    """
-    Checks whether the ‘title’ field in the form has been filled in.
-    If this field is empty, ‘False’ is returned.
-    """
-    if not data.get("title"):
-        return False
-    return True
+        return False, {"error": "missing title and content data"}
+    elif not data.get("content"):
+        return False, {"error": "missing content data"}
+    elif not data.get("title"):
+        return False, {"error": "missing title data"}
+    return True, None
 
 @app.route('/api/posts', methods=['GET'])
 def get_posts():
@@ -123,22 +109,18 @@ def add_posts():
         "content": data.get('content')
     }
 
-    if not validate_post_data_content_and_title(new_blog_post):
-        return jsonify({"error": "missing title and content data"}), 400
+    is_valid, message = validate_post_data(new_blog_post)
 
-    if not validate_post_data_content(new_blog_post):
-        return jsonify({"error": "missing content data"}), 400
-
-    if not validate_post_data_title(new_blog_post):
-        return jsonify({"error": "missing title data"}), 400
+    if not is_valid:
+        return jsonify(message), 400
 
     all_blogs.append(new_blog_post)
     write_json(all_blogs)
     return jsonify(new_blog_post), 201
 
 
-@app.route('/api/posts/<int:postID>', methods=['DELETE'])
-def delete_post(postID):
+@app.route('/api/posts/<int:post_id>', methods=['DELETE'])
+def delete_post(post_id):
     """
     It goes through all the posts, searching for the ID to be deleted.
 
@@ -149,18 +131,18 @@ def delete_post(postID):
 
     all_blogs = get_json()
 
-    post_exists = any(blog["id"] == postID for blog in all_blogs)
+    post_exists = any(blog["id"] == post_id for blog in all_blogs)
 
     if not post_exists:
-        return jsonify({"message": f"Post with id {postID} not found."}), 404
+        return jsonify({"message": f"Post with id {post_id} not found."}), 404
 
-    all_blogs = [blog for blog in all_blogs if blog["id"] != postID]
+    all_blogs = [blog for blog in all_blogs if blog["id"] != post_id]
     write_json(all_blogs)
-    return jsonify({"message": f"Post with id {postID} has been deleted successfully."}), 200
+    return jsonify({"message": f"Post with id {post_id} has been deleted successfully."}), 200
 
 
-@app.route('/api/posts/<int:postID>', methods=['PUT'])
-def update(postID):
+@app.route('/api/posts/<int:post_id>', methods=['PUT'])
+def update_post(post_id):
     """
     It goes through all the posts, searching for the ID to be updated.
 
@@ -170,7 +152,7 @@ def update(postID):
     """
     all_blogs = get_json()
     for blog in all_blogs:
-        if blog["id"] == postID:
+        if blog["id"] == post_id:
             data = request.get_json() # liest den Body der eingehenden HTTP-Anfrage (also die Daten, die der Client beim PUT-Request mitgeschickt hat), interpretiert ihn als JSON-Text und wandelt ihn in ein Python-Dict um.
 
             blog["title"] = data.get('title', blog['title'])
@@ -179,10 +161,10 @@ def update(postID):
             write_json(all_blogs)
             return jsonify(blog), 200
 
-    return jsonify({"message": f"Post with id {postID} not found."}), 404
+    return jsonify({"message": f"Post with id {post_id} not found."}), 404
 
 @app.route('/api/posts/search', methods=['GET'])
-def search():
+def search_post():
     """
     Search function based on key/value parameters
 
