@@ -146,7 +146,10 @@ def delete_post(post_id):
     for i, blog in enumerate(all_blogs):
         if blog["id"] == post_id:
             del all_blogs[i]
-            write_json(all_blogs)
+            try:
+                write_json(all_blogs)
+            except OSError as e:
+                return jsonify({"error": f"Could not save post: {e}"}), 500
             return jsonify({"message": f"Post with id {post_id} has been deleted successfully."}), 200
 
     return jsonify({"message": f"Post with id {post_id} not found."}), 404
@@ -169,7 +172,10 @@ def update_post(post_id):
             blog["title"] = data.get('title', blog['title'])
             blog["content"] = data.get('content', blog['content'])
 
-            write_json(all_blogs)
+            try:
+                write_json(all_blogs)
+            except OSError as e:
+                return jsonify({"error": f"Could not save post: {e}"}), 500
             return jsonify(blog), 200
 
     return jsonify({"message": f"Post with id {post_id} not found."}), 404
