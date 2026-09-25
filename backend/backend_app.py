@@ -45,12 +45,16 @@ def validate_post_request(data):
     """
     if data is None:
         return False, {"error": "Request body must be valid JSON"}
-    elif not data.get("content") and not data.get("title"):
-        return False, {"error": "missing title and content data"}
-    elif not data.get("content"):
-        return False, {"error": "missing content data"}
-    elif not data.get("title"):
-        return False, {"error": "missing title data"}
+
+    list_of_error = []
+    if not data.get("content"):
+        list_of_error.append("content")
+    if not data.get("title"):
+        list_of_error.append("title")
+
+    if list_of_error:
+        return False, {"error": f"missing {' and '.join(list_of_error)} data"}
+
     return True, None
 
 @app.route('/api/posts', methods=['GET'])
@@ -167,7 +171,7 @@ def update_post(post_id):
     all_blogs = load_posts()
     for blog in all_blogs:
         if blog["id"] == post_id:
-            data = request.get_json() # liest den Body der eingehenden HTTP-Anfrage (also die Daten, die der Client beim PUT-Request mitgeschickt hat), interpretiert ihn als JSON-Text und wandelt ihn in ein Python-Dict um.
+            data = request.get_json(silent=True) # liest den Body der eingehenden HTTP-Anfrage (also die Daten, die der Client beim PUT-Request mitgeschickt hat), interpretiert ihn als JSON-Text und wandelt ihn in ein Python-Dict um.
 
             blog["title"] = data.get('title', blog['title'])
             blog["content"] = data.get('content', blog['content'])
